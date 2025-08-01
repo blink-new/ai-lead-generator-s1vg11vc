@@ -1,53 +1,54 @@
 import { useState, useEffect } from 'react'
+import { BarChart3, TrendingUp, Users, Zap } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { 
-  BarChart3,
-  TrendingUp,
-  DollarSign,
-  Users,
-  Calendar,
-  Target
-} from 'lucide-react'
 import blink from '../blink/client'
-import { ClientRecord, SocialCampaignRecord, UpworkProjectRecord, LinkedInContactRecord } from '../types'
+
+interface AnalyticsData {
+  totalLists: number
+  totalLeads: number
+  averageLeadsPerList: number
+  topNiches: { niche: string; count: number }[]
+}
 
 export function Analytics() {
-  const [stats, setStats] = useState({
-    monthlyRevenue: 0,
-    activeClients: 0,
-    successRate: 0,
-    avgProjectValue: 0
+  const [analytics, setAnalytics] = useState<AnalyticsData>({
+    totalLists: 0,
+    totalLeads: 0,
+    averageLeadsPerList: 0,
+    topNiches: []
   })
   const [loading, setLoading] = useState(true)
 
   const loadAnalytics = async () => {
     try {
       const user = await blink.auth.me()
-      
-      // Load all data
-      const [clients, campaigns, upworkProjects, linkedinContacts] = await Promise.all([
-        blink.db.clients.list({ where: { user_id: user.id } }).catch(() => []) as Promise<ClientRecord[]>,
-        blink.db.social_campaigns.list({ where: { user_id: user.id } }).catch(() => []) as Promise<SocialCampaignRecord[]>,
-        blink.db.upwork_projects.list({ where: { user_id: user.id } }).catch(() => []) as Promise<UpworkProjectRecord[]>,
-        blink.db.linkedin_contacts.list({ where: { user_id: user.id } }).catch(() => []) as Promise<LinkedInContactRecord[]>
-      ])
+      const lists = await blink.db.leadLists.list({
+        where: { userId: user.id }
+      })
 
-      // Calculate real stats
-      const monthlyRevenue = clients.reduce((sum, client) => sum + (client.monthly_value || 0), 0)
-      const activeClients = clients.filter(c => c.status === 'active').length
-      const completedProjects = upworkProjects.filter(p => p.status === 'completed').length
-      const totalProjects = upworkProjects.length
-      const successRate = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0
-      const avgProjectValue = totalProjects > 0 ? Math.round(upworkProjects.reduce((sum, p) => sum + (p.budget || 0), 0) / totalProjects) : 0
+      const totalLists = lists.length
+      const totalLeads = lists.reduce((sum, list) => sum + (list.totalLeads || 0), 0)
+      const averageLeadsPerList = totalLists > 0 ? Math.round(totalLeads / totalLists) : 0
 
-      setStats({
-        monthlyRevenue,
-        activeClients,
-        successRate,
-        avgProjectValue
+      // Count niches
+      const nicheCount: { [key: string]: number } = {}
+      lists.forEach(list => {
+        nicheCount[list.niche] = (nicheCount[list.niche] || 0) + 1
+      })
+
+      const topNiches = Object.entries(nicheCount)
+        .map(([niche, count]) => ({ niche, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+
+      setAnalytics({
+        totalLists,
+        totalLeads,
+        averageLeadsPerList,
+        topNiches
       })
     } catch (error) {
-      console.error('Error loading analytics:', error)
+      console.error('Failed to load analytics:', error)
     } finally {
       setLoading(false)
     }
@@ -59,11 +60,11 @@ export function Analytics() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-muted rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/3"></div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map(i => (
               <div key={i} className="h-32 bg-muted rounded-lg"></div>
             ))}
           </div>
@@ -73,142 +74,116 @@ export function Analytics() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Analytics</h1>
-        <p className="text-muted-foreground">Track your agency's performance and growth metrics</p>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground mb-2">Analytics</h1>
+        <p className="text-muted-foreground">Track your lead generation performance</p>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Lists</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {loading ? '...' : `${stats.monthlyRevenue.toLocaleString()}`}
-            </div>
-            <p className="text-xs text-muted-foreground">From active clients</p>
+            <div className="text-2xl font-bold">{analytics.totalLists}</div>
+            <p className="text-xs text-muted-foreground">
+              Lead lists generated
+            </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {loading ? '...' : stats.activeClients}
-            </div>
-            <p className="text-xs text-muted-foreground">Currently active</p>
+            <div className="text-2xl font-bold">{analytics.totalLeads}</div>
+            <p className="text-xs text-muted-foreground">
+              Prospects generated
+            </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Project Success Rate</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {loading ? '...' : `${stats.successRate}%`}
-            </div>
-            <p className="text-xs text-muted-foreground">Completed projects</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Project Value</CardTitle>
+            <CardTitle className="text-sm font-medium">Avg per List</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {loading ? '...' : `${stats.avgProjectValue.toLocaleString()}`}
-            </div>
-            <p className="text-xs text-muted-foreground">Per project</p>
+            <div className="text-2xl font-bold">{analytics.averageLeadsPerList}</div>
+            <p className="text-xs text-muted-foreground">
+              Leads per generation
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">AI Generations</CardTitle>
+            <Zap className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.totalLists}</div>
+            <p className="text-xs text-muted-foreground">
+              AI requests made
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts Placeholder */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Top Niches */}
+      {analytics.topNiches.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <BarChart3 className="w-5 h-5 mr-2" />
-              Revenue Trends
-            </CardTitle>
+            <CardTitle>Top Niches</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex items-center justify-center bg-muted/20 rounded-lg">
-              <div className="text-center">
-                <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-                <p className="text-muted-foreground">Revenue chart will be displayed here</p>
-              </div>
+            <div className="space-y-4">
+              {analytics.topNiches.map((item, index) => (
+                <div key={item.niche} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-semibold text-primary">#{index + 1}</span>
+                    </div>
+                    <span className="font-medium">{item.niche}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${(item.count / Math.max(...analytics.topNiches.map(n => n.count))) * 100}%` 
+                        }}
+                      />
+                    </div>
+                    <span className="text-sm text-muted-foreground w-8 text-right">{item.count}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calendar className="w-5 h-5 mr-2" />
-              Project Timeline
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-center justify-center bg-muted/20 rounded-lg">
-              <div className="text-center">
-                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-                <p className="text-muted-foreground">Project timeline will be displayed here</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      )}
 
-      {/* Service Performance */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Service Performance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg">
-              <div>
-                <h3 className="font-medium">Social Media Marketing</h3>
-                <p className="text-sm text-muted-foreground">12 active campaigns</p>
-              </div>
-              <div className="text-right">
-                <p className="font-medium">$8,500</p>
-                <p className="text-sm text-green-600">+15% growth</p>
-              </div>
+      {/* Empty State */}
+      {analytics.totalLists === 0 && (
+        <Card className="text-center py-12">
+          <CardContent>
+            <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+              <BarChart3 className="w-8 h-8 text-primary" />
             </div>
-            <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg">
-              <div>
-                <h3 className="font-medium">Upwork Projects</h3>
-                <p className="text-sm text-muted-foreground">8 active projects</p>
-              </div>
-              <div className="text-right">
-                <p className="font-medium">$5,200</p>
-                <p className="text-sm text-green-600">+8% growth</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg">
-              <div>
-                <h3 className="font-medium">LinkedIn Outreach</h3>
-                <p className="text-sm text-muted-foreground">45 active connections</p>
-              </div>
-              <div className="text-right">
-                <p className="font-medium">$2,050</p>
-                <p className="text-sm text-green-600">+22% growth</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            <h3 className="text-lg font-semibold mb-2">No Data Yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Generate some leads to see your analytics here
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

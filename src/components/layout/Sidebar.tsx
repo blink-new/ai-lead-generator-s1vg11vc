@@ -1,37 +1,21 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { 
-  LayoutDashboard, 
-  Users, 
-  Share2, 
-  Briefcase, 
-  Linkedin, 
+  Zap, 
+  BookmarkCheck, 
   BarChart3, 
   Settings,
   ChevronLeft,
   ChevronRight,
-  LogOut,
-  Target,
-  Activity,
-  UserCheck,
-  TrendingUp,
-  Zap
+  LogOut
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import blink from '../../blink/client'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Pipeline', href: '/pipeline', icon: Target },
-  { name: 'Activities', href: '/activities', icon: Activity },
-  { name: 'Clients', href: '/clients', icon: Users },
-  { name: 'Team', href: '/team', icon: UserCheck },
-  { name: 'Social Media', href: '/social-media', icon: Share2 },
-  { name: 'Upwork Projects', href: '/upwork', icon: Briefcase },
-  { name: 'LinkedIn Outreach', href: '/linkedin', icon: Linkedin },
+  { name: 'Lead Generator', href: '/generator', icon: Zap },
+  { name: 'Saved Lists', href: '/saved-lists', icon: BookmarkCheck },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Advanced Analytics', href: '/advanced-analytics', icon: TrendingUp },
-  { name: 'Automation', href: '/automation', icon: Zap },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
@@ -50,9 +34,9 @@ export function Sidebar() {
           {!collapsed && (
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center">
-                <LayoutDashboard className="w-5 h-5 text-white" />
+                <Zap className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold text-lg text-foreground">TechCRM Pro</span>
+              <span className="font-bold text-lg text-foreground">AI Lead Generator</span>
             </div>
           )}
           <button
